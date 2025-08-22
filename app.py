@@ -5,7 +5,6 @@ from enum import Enum
 import gspread
 import requests
 import time
-from gspread.exceptions import APIError
 import re
 
 kennelCRegex = re.compile(r"C(\d)")
@@ -212,7 +211,7 @@ def cleanBHealthCheckEmptyDuplicates(url, sheetName="Sheet1"):
     KennelWksht = gc.open_by_url(url)
     healthCheckSh = KennelWksht.worksheet(sheetName)
     for kennel in KennelName:
-        for attempt in range(20):
+        for attempt in range(30):
             try:
                 if kennel.name[0] == "B":
                     allKennels = healthCheckSh.findall(
@@ -243,7 +242,7 @@ def cleanCHealthCheckEmptyDuplicates(url, sheetName="Sheet1"):
     KennelWksht = gc.open_by_url(url)
     healthCheckSh = KennelWksht.worksheet(sheetName)
     for kennel in KennelName:
-        for attempt in range(20):
+        for attempt in range(30):
             try:
                 if re.search(kennelCRegex, kennel.name):
                     allKennels = healthCheckSh.findall(
@@ -277,7 +276,7 @@ def insertKennelADogs(kennelDict, url, sheetName="Sheet1"):
     cleanAHealthCheckEmptyDuplicates(url=url, sheetName=sheetName)
 
     for pairing in kennelDict:
-        for attempt in range(20):
+        for attempt in range(30):
             try:
                 if pairing["Kennel_Name"][0] == "A":
                     kennelCell = healthCheckSh.find(
@@ -325,7 +324,7 @@ def insertKennelBDogs(kennelDict, url, sheetName="Sheet1"):
     cleanBHealthCheckEmptyDuplicates(url=url, sheetName=sheetName)
 
     for pairing in kennelDict:
-        for attempt in range(20):
+        for attempt in range(30):
             try:
                 if pairing["Kennel_Name"][0] == "B":
                     kennelCell = healthCheckSh.find(
@@ -373,7 +372,7 @@ def insertKennelCDogs(kennelDict, url, sheetName="Sheet1"):
     cleanCHealthCheckEmptyDuplicates(url=url, sheetName=sheetName)
 
     for pairing in kennelDict:
-        for attempt in range(20):
+        for attempt in range(30):
             try:
                 if re.search(kennelCRegex, pairing["Kennel_Name"]):
                     kennelCell = healthCheckSh.find(
