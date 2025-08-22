@@ -6,13 +6,12 @@ import gspread
 import requests
 import time
 from gspread.exceptions import APIError
+import re
 
+kennelCRegex = re.compile(r"C(\d)")
+kennelCRegex.match
 
 gc = gspread.service_account(filename="service_account.json")
-
-sh = gc.open_by_url(
-    "https://docs.google.com/spreadsheets/d/1TRXYoEgHvJyhbSuwsXzNhNdP3uHd4-kAZT77arCrRNc/edit?gid=0#gid=0"
-)
 
 
 class KennelName(Enum):
@@ -240,6 +239,37 @@ def cleanBHealthCheckEmptyDuplicates(url, sheetName="Sheet1"):
     print("Removed Duplicate Kennel Rows")
 
 
+def cleanCHealthCheckEmptyDuplicates(url, sheetName="Sheet1"):
+    KennelWksht = gc.open_by_url(url)
+    healthCheckSh = KennelWksht.worksheet(sheetName)
+    for kennel in KennelName:
+        for attempt in range(20):
+            try:
+                if re.search(kennelCRegex, kennel.name):
+                    allKennels = healthCheckSh.findall(
+                        query=str(kennel.name), case_sensitive=False
+                    )
+                    for foundKennelNameCell in allKennels:
+                        healthCheckSh.update_cell(
+                            row=foundKennelNameCell.row,
+                            col=foundKennelNameCell.col + 1,
+                            value="",
+                        )
+                    if len(allKennels) > 1:
+                        for foundKennelNameCell in allKennels[:-1]:
+                            healthCheckSh.delete_rows(foundKennelNameCell.row)
+            except Exception as e:
+                if attempt < 5:
+                    time.sleep(attempt)
+                else:
+                    time.sleep(5)
+                print("ERROR CAUGHT AND RETRIED:", e)
+            else:
+                break
+
+    print("Removed Duplicate Kennel Rows")
+
+
 def insertKennelADogs(kennelDict, url, sheetName="Sheet1"):
     KennelWksht = gc.open_by_url(url)
     healthCheckSh = KennelWksht.worksheet(sheetName)
@@ -337,6 +367,54 @@ def insertKennelBDogs(kennelDict, url, sheetName="Sheet1"):
     print("Successfully Completed Kennel B")
 
 
+def insertKennelCDogs(kennelDict, url, sheetName="Sheet1"):
+    KennelWksht = gc.open_by_url(url)
+    healthCheckSh = KennelWksht.worksheet(sheetName)
+    cleanCHealthCheckEmptyDuplicates(url=url, sheetName=sheetName)
+
+    for pairing in kennelDict:
+        for attempt in range(20):
+            try:
+                if re.search(kennelCRegex, pairing["Kennel_Name"]):
+                    kennelCell = healthCheckSh.find(
+                        str(pairing["Kennel_Name"]), case_sensitive=False
+                    )
+
+                    if kennelCell is not None:
+                        nameCell = healthCheckSh.cell(
+                            row=kennelCell.row, col=kennelCell.col + 1
+                        )
+
+                        if len(pairing["Dogs"]) > 1:
+                            healthCheckSh.update_cell(
+                                row=nameCell.row,
+                                col=nameCell.col,
+                                value=pairing["Dogs"][0],
+                            )
+                            for dog in pairing["Dogs"][1:]:
+
+                                healthCheckSh.insert_row(
+                                    values=[pairing["Kennel_Name"], str(dog)],
+                                    index=nameCell.row,
+                                )
+
+                        elif len(pairing["Dogs"]) == 1:
+                            healthCheckSh.update_cell(
+                                row=nameCell.row,
+                                col=nameCell.col,
+                                value=pairing["Dogs"][0],
+                            )
+            except Exception as e:
+                if attempt < 5:
+                    time.sleep(attempt)
+                else:
+                    time.sleep(5)
+                print("ERROR CAUGHT AND RETRIED:", e)
+            else:
+                break
+    print("Successfully Completed Kennel C")
+
+
 def main():
     session = requests.Session()
     session = gingrLogin(session)
@@ -347,6 +425,9 @@ def main():
     )
     insertKennelBDogs(
         GetLodgingData(session), url=config.kennelBHealthCheckURL, sheetName="Sheet1"
+    )
+    insertKennelCDogs(
+        GetLodgingData(session), url=config.kennelCHealthCheckURL, sheetName="Sheet1"
     )
 
 
